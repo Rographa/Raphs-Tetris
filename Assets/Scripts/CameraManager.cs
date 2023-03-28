@@ -4,7 +4,7 @@ using UnityEngine;
 using Cinemachine;
 public class CameraManager : MonoBehaviour
 {
-    [SerializeField] CinemachineImpulseSource impulseSource;
+    [SerializeField] private CinemachineImpulseSource impulseSource;
 
     private void OnEnable()
     {
@@ -16,11 +16,13 @@ public class CameraManager : MonoBehaviour
         Tetromino.OnFinished -= CameraShake;
         GameManager.OnLineCompleted -= CameraShake;
     }
-    public void CameraShake()
+
+    private void CameraShake()
     {
         impulseSource.GenerateImpulse();
     }
-    public void CameraShake(Transform pNull)
+
+    private void CameraShake(Transform pNull)
     {
         impulseSource.GenerateImpulse();
     }

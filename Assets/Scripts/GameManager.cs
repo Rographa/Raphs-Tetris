@@ -6,29 +6,29 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] ScoreManager scoreManager;
-    [SerializeField] GameObject[] tetrominos;
-    [SerializeField] GameObject[] tetrominosNext;
-    [SerializeField] Vector3 spawnPos;
-    [SerializeField] GameObject pauseCanvas;
-    [SerializeField] GameObject gameOverCanvas;
-    [SerializeField] TextMeshProUGUI scoreTxt;
-    public const int SCREEN_LIMIT_X = 13;
-    public const int SCREEN_LIMIT_Y = 22;
+    [SerializeField] private ScoreManager scoreManager;
+    [SerializeField] private GameObject[] tetrominos;
+    [SerializeField] private GameObject[] tetrominosNext;
+    [SerializeField] private Vector3 spawnPos;
+    [SerializeField] private GameObject pauseCanvas;
+    [SerializeField] private GameObject gameOverCanvas;
+    [SerializeField] private TextMeshProUGUI scoreTxt;
+    public const int ScreenLimitX = 13;
+    public const int ScreenLimitY = 22;
 
     public delegate void LineCompletedEvent();
     public delegate void TetrominoSpawned();
     public static event LineCompletedEvent OnLineCompleted;
     public static event TetrominoSpawned OnTetrominoSpawned;
-    public static Transform[,] occupiedSpaces;
+    private static Transform[,] _occupiedSpaces;
 
-    int nextTetrominoIndex = -1;
-    bool paused;
+    private int _nextTetrominoIndex = -1;
+    private bool _paused;
     private void Awake()
     {
-        if (PlayerInfo.playerInfo is null)
+        if (PlayerInfo.Data is null)
             SaveLoad.Load();
-        occupiedSpaces = new Transform[SCREEN_LIMIT_X, SCREEN_LIMIT_Y];
+        _occupiedSpaces = new Transform[ScreenLimitX, ScreenLimitY];
         SpawnTetromino();
     }
     private void OnEnable()
@@ -41,86 +41,83 @@ public class GameManager : MonoBehaviour
         Tetromino.OnFinished -= AddToGrid;
         InputManager.EscPressed -= Pause;
     }    
-    void AddToGrid(Transform objParent)
+    private void AddToGrid(Transform objParent)
     {
-        for (int i = 0; i < objParent.childCount - 1; i++)
+        for (var i = 0; i < objParent.childCount - 1; i++)
         {
-            Transform temp = objParent.GetChild(i);
-            int _x = Mathf.RoundToInt(temp.position.x);
-            int _y = Mathf.RoundToInt(temp.position.y);
-            if (_y >= SCREEN_LIMIT_Y - 1)
+            var obj = objParent.GetChild(i);
+            var pos = obj.position;
+            var x = Mathf.RoundToInt(pos.x);
+            var y = Mathf.RoundToInt(pos.y);
+            if (y >= ScreenLimitY - 1)
             {
                 GameOver();
                 return;
             }
-            occupiedSpaces[_x, _y] = temp;
+            _occupiedSpaces[x, y] = obj;
         }
         StartCoroutine(CheckLines());
         SpawnTetromino();
     }
-    IEnumerator CheckLines()
+    private IEnumerator CheckLines()
     {
-        float multiplier = 1;
+        var multiplier = 1f;
         
-        for (int i = SCREEN_LIMIT_Y - 1; i >= 0; i--)
-        {            
-            if (LineExists(i))
-            {                
-                yield return DeleteElementsRoutine(i);
-                AudioManager.instance.PlayClip(AudioManager.Clips.LINE_FINISHED, true);
-                scoreManager.Score(multiplier);
-                multiplier += 0.5f;
-                StartCoroutine(MoveDownRoutine(i));
-                yield return new WaitForEndOfFrame();
-            }
+        for (var i = ScreenLimitY - 1; i >= 0; i--)
+        {
+            if (!LineExists(i)) continue;
+            
+            yield return DeleteElementsRoutine(i);
+            AudioManager.Instance.PlayClip(AudioManager.Clips.LINE_FINISHED, true);
+            scoreManager.Score(multiplier);
+            multiplier += 0.5f;
+            StartCoroutine(MoveDownRoutine(i));
+            yield return new WaitForEndOfFrame();
         }
     }
-    bool LineExists(int i)
+    private static bool LineExists(int i)
     {
-        for (int j = 0; j < SCREEN_LIMIT_X; j++)
+        for (var j = 0; j < ScreenLimitX; j++)
         {            
-            if (occupiedSpaces[j, i] is null)
+            if (_occupiedSpaces[j, i] == null)
                 return false;
         }
         return true;
     }
-    IEnumerator DeleteElementsRoutine(int i)
+    private IEnumerator DeleteElementsRoutine(int i)
     {
-        List<TetrominoPiece> objs = new List<TetrominoPiece>();
-        for (int j = 0; j < SCREEN_LIMIT_X; j++)
+        var objs = new List<TetrominoPiece>();
+        for (var j = 0; j < ScreenLimitX; j++)
         {            
-            Transform go = occupiedSpaces[j, i];            
-            objs.Add(go.GetComponent<TetrominoPiece>());
-            occupiedSpaces[j, i] = null;
+            var obj = _occupiedSpaces[j, i];            
+            objs.Add(obj.GetComponent<TetrominoPiece>());
+            _occupiedSpaces[j, i] = null;
         }
         yield return new WaitForEndOfFrame();
-        foreach(TetrominoPiece piece in objs)
+        
+        foreach (var piece in objs)
         {
             piece.BlinkAndFade();
         }
         yield return new WaitForSeconds(0.15f);
         OnLineCompleted?.Invoke();        
     }
-    IEnumerator MoveDownRoutine(int i)
+    private IEnumerator MoveDownRoutine(int i)
     {
-        List<Transform> objs = new List<Transform>();
-        for (int k = i; k < SCREEN_LIMIT_Y - 1; k++)
+        var objs = new List<Transform>();
+        for (var k = i; k < ScreenLimitY - 1; k++)
         {
-            for (int j = 0; j < SCREEN_LIMIT_X; j++)
-            {                
-                if (!ReferenceEquals(occupiedSpaces[j, k], null))
-                {
-                    occupiedSpaces[j, k - 1] = occupiedSpaces[j, k];
-                    occupiedSpaces[j, k] = null;                    
-                    objs.Add(occupiedSpaces[j, k - 1]);
-                }
+            for (var j = 0; j < ScreenLimitX; j++)
+            {
+                if (_occupiedSpaces[j, k] == null) continue;
+                
+                _occupiedSpaces[j, k - 1] = _occupiedSpaces[j, k];
+                _occupiedSpaces[j, k] = null;                    
+                objs.Add(_occupiedSpaces[j, k - 1]);
             }
             if (objs.Count > 0)
-            {                                
-                foreach (Transform obj in objs)
-                {
-                    obj.SendMessage("MovePieceDown", k-1);
-                }
+            {
+                objs.ForEach(t => t.GetComponent<TetrominoPiece>().MovePieceDown(k - 1));
                 yield return new WaitForEndOfFrame();
             }
             objs.Clear();            
@@ -129,47 +126,49 @@ public class GameManager : MonoBehaviour
         yield return new WaitForEndOfFrame();
 
     }
-    void SpawnTetromino()
+    private void SpawnTetromino()
     {
-        if (nextTetrominoIndex == -1)
+        if (_nextTetrominoIndex == -1)
         {
             Instantiate(tetrominos[Random.Range(0, tetrominos.Length)], spawnPos, Quaternion.identity);
             SetNextTetromino();
         }
         else
         {
-            Instantiate(tetrominos[nextTetrominoIndex], spawnPos, Quaternion.identity);
+            Instantiate(tetrominos[_nextTetrominoIndex], spawnPos, Quaternion.identity);
             SetNextTetromino();
         }
         OnTetrominoSpawned?.Invoke();
     }
-    void SetNextTetromino()
+    private void SetNextTetromino()
     {
-        nextTetrominoIndex = Random.Range(0, tetrominos.Length);
-        foreach(GameObject i in tetrominosNext)
+        _nextTetrominoIndex = Random.Range(0, tetrominos.Length);
+        foreach (var i in tetrominosNext)
         {
             if (i.activeInHierarchy) i.SetActive(false);
         }
-        tetrominosNext[nextTetrominoIndex].SetActive(true);
+        tetrominosNext[_nextTetrominoIndex].SetActive(true);
     }
     public static bool SpaceOccupied(int x, int y)
     {
-        x = Mathf.Clamp(x, 0, SCREEN_LIMIT_X - 1);
-        y = Mathf.Clamp(y, 0, SCREEN_LIMIT_Y - 1);
-        return !ReferenceEquals(occupiedSpaces[x, y], null);
+        x = Mathf.Clamp(x, 0, ScreenLimitX - 1);
+        y = Mathf.Clamp(y, 0, ScreenLimitY - 1);
+        return !ReferenceEquals(_occupiedSpaces[x, y], null);
     }
-    public void Pause()
+
+    private void Pause()
     {
-        paused = !paused;
-        pauseCanvas.SetActive(paused);
-        Time.timeScale = paused ? 0 : 1;
+        _paused = !_paused;
+        pauseCanvas.SetActive(_paused);
+        Time.timeScale = _paused ? 0 : 1;
     }
-    public void GameOver()
+
+    private void GameOver()
     {
-        int _score = ScoreManager.instance.GetScore();
-        scoreTxt.SetText(_score.ToString());
-        LeaderboardsManager.instance.AddNewHighscore(PlayerPrefs.GetString("PlayerName", "Player"), _score);
-        PlayerInfo.playerInfo.CheckAndSetHighscore(_score);
+        var score = ScoreManager.Instance.GetScore();
+        scoreTxt.SetText(score.ToString());
+        LeaderboardsManager.Instance.AddNewHighscore(PlayerPrefs.GetString("PlayerName", "Player"), score);
+        PlayerInfo.Data.CheckAndSetHighscore(score);
         Time.timeScale = 0;
         gameOverCanvas.SetActive(true);
     }

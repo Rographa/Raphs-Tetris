@@ -4,20 +4,20 @@ using UnityEngine;
 using DG.Tweening;
 public class Tetromino : MonoBehaviour
 {   
-    [SerializeField] float moveDownCooldown = 0.75f;
-    [SerializeField] float rotDuration = 0.2f;
-    [SerializeField] Transform rotPos;
-    [SerializeField] MeshRenderer[] mrs;
-    [SerializeField] Material[] materials;
-    bool rotating;
-    bool ableToMove;
-    bool finished;
-    List<Transform> pieces = new List<Transform>();
-    List<Transform> xPieces = new List<Transform>();
+    [SerializeField] private float moveDownCooldown = 0.75f;
+    [SerializeField] private float rotDuration = 0.2f;
+    [SerializeField] private Transform rotPos;
+    [SerializeField] private MeshRenderer[] mrs;
+    [SerializeField] private Material[] materials;
+    private bool _rotating;
+    private bool _ableToMove;
+    private bool _finished;
+    private readonly List<Transform> _pieces = new List<Transform>();
+    private readonly List<Transform> _xPieces = new List<Transform>();
     public delegate void TetrominoEvents(Transform obj);
     public static event TetrominoEvents OnFinished, OnPopup;
 
-    Coroutine moveDownRoutine;
+    private Coroutine _moveDownRoutine;
     private void Awake()
     {
         SetupRandomColor();
@@ -29,70 +29,75 @@ public class Tetromino : MonoBehaviour
     private void OnEnable() => SubscribeInputEvents();
     
     private void OnDisable() => UnsubscribeInputEvents();
-    void Setup()
+
+    private void Setup()
     {
         GetPieces();
         CheckXPieces();
         transform.localScale = Vector3.zero;
-        transform.DOScale(1, 0.5f).SetEase(Ease.OutBounce);
-        AudioManager.instance.PlayClip(AudioManager.Clips.TETRO_POPUP, true);
-        Invoke("Popup", 0.5f);
-        moveDownRoutine = StartCoroutine(MoveDownRoutine());
+        transform.DOScale(1, 0.5f).SetEase(Ease.OutBounce).OnComplete(Popup);
+        AudioManager.Instance.PlayClip(AudioManager.Clips.TETRO_POPUP, true);
+        //Invoke("Popup", 0.5f);
+        _moveDownRoutine = StartCoroutine(MoveDownRoutine());
     }
     public void CheckChildren()
     {
         StartCoroutine(CheckChildrenRoutine());
     }
-    IEnumerator CheckChildrenRoutine()
+
+    private IEnumerator CheckChildrenRoutine()
     {
         yield return new WaitForEndOfFrame();
-        Debug.Log(transform.childCount);
         if (transform.childCount <= 1)
         {
             Destroy(this.gameObject);
         }
     }
-    void Popup()
+
+    private void Popup()
     {
         RenderLines();        
         OnPopup?.Invoke(transform);
     }
-    void GetPieces()
+
+    private void GetPieces()
     {
         foreach (Transform children in transform)
         {
             if (children == rotPos) continue;
-            pieces.Add(children);
+            _pieces.Add(children);
         }
     }
-    void SetupRandomColor()
+
+    private void SetupRandomColor()
     {
-        Material mat = materials[Random.Range(0, materials.Length)];
-        foreach (MeshRenderer mr in mrs)
+        var mat = materials[Random.Range(0, materials.Length)];
+        foreach (var mr in mrs)
         {
             mr.material = mat;
         }
     }
-    void Finish()
+
+    private void Finish()
     {
         if (AbleToMove(Vector3.down))
         {
-            if (moveDownRoutine is null)
+            if (_moveDownRoutine is null)
             {
-                moveDownRoutine = StartCoroutine(MoveDownRoutine(false));
+                _moveDownRoutine = StartCoroutine(MoveDownRoutine(false));
                 return;
             }
         }
-        if (!finished)
-        {
-            finished = true;            
-            UnsubscribeInputEvents();
-            OnFinished?.Invoke(transform);
-            StartCoroutine(BlobEffect());
-            LineManager.instance.HideLines();
-        }
+        if (_finished) return;
+        
+        _finished = true;            
+        UnsubscribeInputEvents();
+        OnFinished?.Invoke(transform);
+        StartCoroutine(BlobEffect());
+        LineManager.Instance.HideLines();
     }
-    IEnumerator BlobEffect()
+
+    private IEnumerator BlobEffect()
     {
         transform.DOShakePosition(0.2f, 0.1f);
         transform.DOScale(0.8f, 0.05f);
@@ -101,50 +106,53 @@ public class Tetromino : MonoBehaviour
         yield return new WaitForSeconds(0.1f);
         transform.DOScale(1, 0.05f);
     }
-    void Move(Vector3 dir)
+
+    private void Move(Vector3 dir)
     {
-        if (!finished && ableToMove)
+        if (_finished || !_ableToMove) return;
+        
+        transform.Translate(dir, Space.World);
+        CheckXPieces();
+        RenderLines();
+    }
+
+    private void MoveRight()
+    {
+        if (_rotating) return;
+        if (AbleToMove(Vector3.right)) Move(Vector3.right);
+    }
+
+    private void MoveLeft()
+    {
+        if (_rotating) return;
+        if (AbleToMove(Vector3.left)) Move(Vector3.left);
+    }
+
+    private void MoveDown()
+    {
+        if (_rotating) return;
+        if (AbleToMove(Vector3.down)) Move(Vector3.down);
+        else
         {
-            transform.Translate(dir, Space.World);
-            CheckXPieces();
-            RenderLines();
+            Finish();
         }
     }
-    void MoveRight()
+
+    private void Rotate()
     {
-        if (!rotating)
-            if (AbleToMove(Vector3.right)) Move(Vector3.right);
-    }
-    void MoveLeft()
-    {
-        if (!rotating)
-            if (AbleToMove(Vector3.left)) Move(Vector3.left);
-    }
-    void MoveDown()
-    {
-        if (!rotating)
-        {
-            if (AbleToMove(Vector3.down)) Move(Vector3.down);
-            else
-            {
-                Finish();
-            }
-        }
-    }
-    void Rotate()
-    {
-        if (!rotating && AbleToMove(Vector3.zero))
+        if (!_rotating && AbleToMove(Vector3.zero))
             StartCoroutine(RotateRoutine());
     }
-    IEnumerator RotateRoutine()
+
+    private IEnumerator RotateRoutine()
     {
-        rotating = true;
-        Vector3 previousPos = transform.position;
-        Quaternion previousRot = transform.rotation;
+        _rotating = true;
+        var previousPos = transform.position;
+        var previousRot = transform.rotation;
         transform.RotateAround(rotPos.position, Vector3.forward, 90);
         if (!CheckChildrenSpaceOccupied())
         {
-            Quaternion targetRot = transform.rotation;
+            var targetRot = transform.rotation;
             transform.rotation = previousRot;
             transform.DORotateQuaternion(targetRot, rotDuration).SetEase(Ease.OutElastic);
             for (float i = 0; i < 1; i += Time.deltaTime / rotDuration)
@@ -163,13 +171,14 @@ public class Tetromino : MonoBehaviour
             transform.position = previousPos;
             transform.rotation = previousRot;
         }
-        rotating = false;
+        _rotating = false;
     }
-    IEnumerator MoveDownRoutine(bool delay = true)
+
+    private IEnumerator MoveDownRoutine(bool delay = true)
     {
         if (delay)
             yield return new WaitForSeconds(moveDownCooldown);
-        ableToMove = true;
+        _ableToMove = true;
         while (true)
         {
             yield return new WaitForSeconds(moveDownCooldown);
@@ -177,83 +186,94 @@ public class Tetromino : MonoBehaviour
             MoveDown();
         } 
         yield return new WaitForSeconds(moveDownCooldown);
-        moveDownRoutine = null;
+        _moveDownRoutine = null;
         Finish();
     }
-    void Reposition()
+
+    private void Reposition()
     {        
-        if (!int.TryParse(transform.position.x.ToString(), out int i))
+        if (!int.TryParse(transform.position.x.ToString(), out var i))
         {
-            int newX = transform.position.x > GameManager.SCREEN_LIMIT_X / 2 ? Mathf.FloorToInt(transform.position.x) : Mathf.CeilToInt(transform.position.x);
-            int newY = transform.position.y > GameManager.SCREEN_LIMIT_Y / 2 ? Mathf.FloorToInt(transform.position.y) : Mathf.CeilToInt(transform.position.y);
+            var newX = transform.position.x > GameManager.ScreenLimitX / 2 ? Mathf.FloorToInt(transform.position.x) : Mathf.CeilToInt(transform.position.x);
+            var newY = transform.position.y > GameManager.ScreenLimitY / 2 ? Mathf.FloorToInt(transform.position.y) : Mathf.CeilToInt(transform.position.y);
             transform.position = new Vector3(newX, newY);
         }        
-        foreach (Transform children in pieces)
+        foreach (var children in _pieces)
         {            
-            Vector3 childPos = children.position;
-            int childPosX = Mathf.RoundToInt(childPos.x);
-            int childPosY = Mathf.RoundToInt(childPos.y);
-            if (childPosX < 0)
-                transform.Translate(Vector3.right, Space.World);
-            else if (childPosX >= GameManager.SCREEN_LIMIT_X)
-                transform.Translate(Vector3.left, Space.World);            
+            var childPos = children.position;
+            var childPosX = Mathf.RoundToInt(childPos.x);
+            var childPosY = Mathf.RoundToInt(childPos.y);
+            switch (childPosX)
+            {
+                case < 0:
+                    transform.Translate(Vector3.right, Space.World);
+                    break;
+                case >= GameManager.ScreenLimitX:
+                    transform.Translate(Vector3.left, Space.World);
+                    break;
+            }            
         }        
     }
-    bool AbleToMove(Vector3 newPos)
+
+    private bool AbleToMove(Vector3 newPos)
     {
-        if (rotating) return true;
-        int _x = Mathf.RoundToInt(newPos.x);
-        int _y = Mathf.RoundToInt(newPos.y);
+        if (_rotating) return true;
+        var x = Mathf.RoundToInt(newPos.x);
+        var y = Mathf.RoundToInt(newPos.y);
         
-        foreach (Transform children in pieces)
+        foreach (var children in _pieces)
         {            
-            Vector3 childPos = children.position;
-            int childPosX = Mathf.RoundToInt(childPos.x);
-            int childPosY = Mathf.RoundToInt(childPos.y);            
-            if (childPosX + _x < 0 || childPosX + _x >= GameManager.SCREEN_LIMIT_X || childPosY + _y < 0)
+            var childPos = children.position;
+            var childPosX = Mathf.RoundToInt(childPos.x);
+            var childPosY = Mathf.RoundToInt(childPos.y);            
+            if (childPosX + x < 0 || childPosX + x >= GameManager.ScreenLimitX || childPosY + y < 0)
                 return false;
-            if (GameManager.SpaceOccupied(childPosX + _x, childPosY + _y))
+            if (GameManager.SpaceOccupied(childPosX + x, childPosY + y))
                 return false;
         }        
         return true;
     }
-    void CheckXPieces()
+
+    private void CheckXPieces()
     {
-        xPieces.Clear();
-        List<int> xList = new List<int>();
-        foreach (Transform piece in pieces)
+        _xPieces.Clear();
+        var xList = new List<int>();
+        foreach (var piece in _pieces)
         {
-            int x = Mathf.RoundToInt(piece.position.x);
-            if (!xList.Contains(x))
-            {
-                xList.Add(x);
-                xPieces.Add(piece);
-            }
+            var x = Mathf.RoundToInt(piece.position.x);
+            if (xList.Contains(x)) continue;
+            
+            xList.Add(x);
+            _xPieces.Add(piece);
         }
     }
-    bool CheckChildrenSpaceOccupied()
+
+    private bool CheckChildrenSpaceOccupied()
     {
-        foreach (Transform children in pieces)
+        foreach (var children in _pieces)
         {
-            Vector3 childPos = children.position;
-            int childPosX = Mathf.RoundToInt(childPos.x);
-            int childPosY = Mathf.RoundToInt(childPos.y);
+            var childPos = children.position;
+            var childPosX = Mathf.RoundToInt(childPos.x);
+            var childPosY = Mathf.RoundToInt(childPos.y);
             if (GameManager.SpaceOccupied(childPosX, childPosY)) return true;
         }
         return false;
     }
-    void RenderLines() 
+
+    private void RenderLines() 
     {
-        LineManager.instance.RenderLine(xPieces.ToArray());
+        LineManager.Instance.RenderLine(_xPieces.ToArray());
     }
-    void SubscribeInputEvents()
+
+    private void SubscribeInputEvents()
     {
         InputManager.MoveDown += MoveDown;
         InputManager.MoveLeft += MoveLeft;
         InputManager.MoveRight += MoveRight;
         InputManager.Rotate += Rotate;        
     }
-    void UnsubscribeInputEvents()
+
+    private void UnsubscribeInputEvents()
     {
         InputManager.MoveDown -= MoveDown;
         InputManager.MoveLeft -= MoveLeft;

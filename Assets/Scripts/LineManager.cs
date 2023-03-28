@@ -4,14 +4,14 @@ using UnityEngine;
 
 public class LineManager : MonoBehaviour
 {
-    public static LineManager instance;
-    [SerializeField] LineRenderer[] lines;
+    public static LineManager Instance;
+    [SerializeField] private LineRenderer[] lines;
 
     private void Awake()
     {
-        if (instance == null)
+        if (Instance == null)
         {
-            instance = this;
+            Instance = this;
         }
         else
         {
@@ -21,11 +21,11 @@ public class LineManager : MonoBehaviour
     public void RenderLine(Transform[] objs)
     {
         HideLines();   
-        for (int i = 0; i < objs.Length; i++)
+        for (var i = 0; i < objs.Length; i++)
         {
-            LineRenderer line = lines[i];
+            var line = lines[i];
             line.enabled = true;
-            Vector3 pos = objs[i].position;
+            var pos = objs[i].position;
             line.SetPosition(0, pos);
             pos.y -= 25;
             line.SetPosition(1, pos);
@@ -33,7 +33,7 @@ public class LineManager : MonoBehaviour
     }
     public void HideLines()
     {
-        foreach (LineRenderer line in lines)
+        foreach (var line in lines)
         {
             line.enabled = false;
         }

@@ -6,17 +6,17 @@ using System.IO;
 
 public static class SaveLoad
 {
-    public static PlayerInfo playerInfo = new PlayerInfo();
+    private static PlayerInfo _playerInfo = new PlayerInfo();
 
     public static void Load()
     {
         if (File.Exists(Application.persistentDataPath + "/tetris.raph"))
         {
-            BinaryFormatter bf = new BinaryFormatter();
-            FileStream file = File.Open(Application.persistentDataPath + "/tetris.raph", FileMode.Open);
-            playerInfo = (PlayerInfo)bf.Deserialize(file);
+            var bf = new BinaryFormatter();
+            var file = File.Open(Application.persistentDataPath + "/tetris.raph", FileMode.Open);
+            _playerInfo = (PlayerInfo)bf.Deserialize(file);
             file.Close();
-            PlayerInfo.playerInfo = playerInfo;
+            PlayerInfo.Data = _playerInfo;
         }
         else
         {
@@ -26,12 +26,11 @@ public static class SaveLoad
 
     public static void Save()
     {
-        if (ReferenceEquals(PlayerInfo.playerInfo, null))
-            PlayerInfo.playerInfo = new PlayerInfo();
-        playerInfo = PlayerInfo.playerInfo;
-        BinaryFormatter bf = new BinaryFormatter();
-        FileStream file = File.Create(Application.persistentDataPath + "/tetris.raph");
-        bf.Serialize(file, playerInfo);
+        PlayerInfo.Data ??= new PlayerInfo();
+        _playerInfo = PlayerInfo.Data;
+        var bf = new BinaryFormatter();
+        var file = File.Create(Application.persistentDataPath + "/tetris.raph");
+        bf.Serialize(file, _playerInfo);
         file.Close();
     }
 }

@@ -4,7 +4,7 @@ using UnityEngine;
 [System.Serializable]
 public class PlayerInfo
 {
-    public static PlayerInfo playerInfo;
+    public static PlayerInfo Data;
     public int HighScore
     {
         get;
@@ -16,10 +16,9 @@ public class PlayerInfo
     }
     public void CheckAndSetHighscore(int currentScore)
     {
-        if (currentScore > HighScore)
-        {
-            HighScore = currentScore;
-            SaveLoad.Save();
-        }
+        if (currentScore <= HighScore) return;
+        
+        HighScore = currentScore;
+        SaveLoad.Save();
     }
 }

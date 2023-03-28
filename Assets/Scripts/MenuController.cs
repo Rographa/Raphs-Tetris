@@ -7,21 +7,21 @@ using DG.Tweening;
 using TMPro;
 public class MenuController : MonoBehaviour
 {    
-    [SerializeField] Transform title;
-    [SerializeField] Transform play;
-    [SerializeField] Transform exit;
-    [SerializeField] Transform credits;
-    [SerializeField] Transform highScore;
-    [SerializeField] TextMeshProUGUI score;
-    [SerializeField] TextMeshProUGUI[] topPlayers;
-    [SerializeField] TMP_InputField playerNameInput;
-    [SerializeField] Image fade;
-    [SerializeField] AudioClip btnHighlight;
-    [SerializeField] AudioClip btnPressed;
-    [SerializeField] AudioSource source;
-    [SerializeField] Animator leaderboardsAnim;
+    [SerializeField] private Transform title;
+    [SerializeField] private Transform play;
+    [SerializeField] private Transform exit;
+    [SerializeField] private Transform credits;
+    [SerializeField] private Transform highScore;
+    [SerializeField] private TextMeshProUGUI score;
+    [SerializeField] private TextMeshProUGUI[] topPlayers;
+    [SerializeField] private TMP_InputField playerNameInput;
+    [SerializeField] private Image fade;
+    [SerializeField] private AudioClip btnHighlight;
+    [SerializeField] private AudioClip btnPressed;
+    [SerializeField] private AudioSource source;
+    [SerializeField] private Animator leaderboardsAnim;
 
-    public string playerName
+    private static string PlayerName
     {
         get => PlayerPrefs.GetString("PlayerName", "Player");
         set => PlayerPrefs.SetString("PlayerName", value);
@@ -29,8 +29,8 @@ public class MenuController : MonoBehaviour
     private void Awake()
     {
         SaveLoad.Load();
-        playerNameInput.text = playerName;
-        score.SetText(PlayerInfo.playerInfo.HighScore.ToString());      
+        playerNameInput.text = PlayerName;
+        score.SetText(PlayerInfo.Data.HighScore.ToString());      
     }
     private void OnEnable()
     {
@@ -42,17 +42,18 @@ public class MenuController : MonoBehaviour
     }
     private void Start()
     {
-        LeaderboardsManager.instance.DownloadHighscores();
+        LeaderboardsManager.Instance.DownloadHighscores();
         StartCoroutine(StartAnimation());        
     }
-    IEnumerator StartAnimation()
+
+    private IEnumerator StartAnimation()
     {
-        float startYTitle = title.position.y;
-        float startYExit = exit.position.y;
-        float startYPlay = play.position.y;
-        float startYCredits = credits.position.y;
-        float startYHighscore = highScore.position.y;
-        float startYLeaderboards = leaderboardsAnim.transform.position.y;
+        var startYTitle = title.position.y;
+        var startYExit = exit.position.y;
+        var startYPlay = play.position.y;
+        var startYCredits = credits.position.y;
+        var startYHighscore = highScore.position.y;
+        var startYLeaderboards = leaderboardsAnim.transform.position.y;
         leaderboardsAnim.enabled = false;
         exit.DOMoveY(1500, 0, true);
         play.DOMoveY(1500, 0, true);
@@ -75,9 +76,9 @@ public class MenuController : MonoBehaviour
 
         leaderboardsAnim.enabled = true;
     }
-    public void ChangeName(string _name)
+    public void ChangeName(string newName)
     {
-        playerName = _name;
+        PlayerName = newName;
     }
     public void RemoveSpaces()
     {
@@ -85,25 +86,27 @@ public class MenuController : MonoBehaviour
     }
     public void PlayButton()
     {
-        PressedSFX();
+        PressedSfx();
         StartCoroutine(LoadScene());
     }
     public void ExitButton()
     {
-        PressedSFX();
+        PressedSfx();
         Application.Quit();
     }
-    public void HighlightSFX()
+    public void HighlightSfx()
     {
         source.PlayOneShot(btnHighlight);
     }
-    public void PressedSFX()
+
+    private void PressedSfx()
     {
         source.PlayOneShot(btnPressed);
     }
-    IEnumerator LoadScene()
+
+    private IEnumerator LoadScene()
     {
-        AsyncOperation async = SceneManager.LoadSceneAsync(1);
+        var async = SceneManager.LoadSceneAsync(1);
         async.allowSceneActivation = false;
         Fade();
         yield return new WaitForSeconds(1.1f);
@@ -116,9 +119,10 @@ public class MenuController : MonoBehaviour
             yield return null;
         }
     }
-    void Fade()
+
+    private void Fade()
     {
-        Color color = fade.color;
+        var color = fade.color;
         color.a = 1;
         fade.color = color;
         fade.CrossFadeAlpha(0f, 0f, true);
@@ -130,14 +134,16 @@ public class MenuController : MonoBehaviour
     {
         leaderboardsAnim.SetTrigger("OnClick");
     }
-    public void SetLeaderboards()
+
+    private void SetLeaderboards()
     {
-        Highscore[] highscoresList = LeaderboardsManager.instance.highscoresList;
-        for (int i = 0; i < topPlayers.Length; i++)
+        var highscoresList = LeaderboardsManager.Instance.HighscoresList;
+        for (var i = 0; i < topPlayers.Length; i++)
         {
             if (highscoresList.Length <= i) break;
-            Highscore hs = highscoresList[i];
-            topPlayers[i].SetText($"{i + 1}. {hs.username} - {hs.score}");
+            var hs = highscoresList[i];
+            var text = $"{(i + 1).ToString()}. {hs.Username} - {hs.Score.ToString()}";
+            topPlayers[i].SetText(text);
         }
     }
 }
